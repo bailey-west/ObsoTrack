@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ObsoTrak™</title>
+    <title>Store Management Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -19,8 +19,8 @@
         <!-- Header -->
         <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">ObsoTrak™</h1>
-                <p class="text-slate-500 mt-1">Observations & Coachings</p>
+                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Management Tracker</h1>
+                <p class="text-slate-500 mt-1">Observations & Coaching</p>
             </div>
             <div class="flex items-center gap-3">
                 <label for="monthSelect" class="text-sm font-medium text-slate-600">Fiscal Month:</label>
@@ -46,6 +46,30 @@
                         Add Staff
                     </button>
                 </div>
+            </div>
+        </section>
+
+        <!-- SMART Goals -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            <div class="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center cursor-pointer select-none" onclick="toggleSection('goalSection')">
+                <h2 class="text-lg font-semibold flex items-center gap-2">
+                    <i data-lucide="target" class="w-5 h-5 text-rose-600"></i> SMART Goals
+                </h2>
+                <i data-lucide="chevron-down" id="goalSection-icon" class="w-5 h-5 text-slate-400 transition-transform -rotate-90"></i>
+            </div>
+            <div id="goalSection" class="hidden overflow-x-auto">
+                <table class="w-full text-sm text-left text-slate-600">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th scope="col" class="px-6 py-4 font-medium w-48">Staff Member</th>
+                            <th scope="col" class="px-6 py-4 font-medium">Current Active Goal</th>
+                            <th scope="col" class="px-6 py-4 text-right w-24">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="goalTableBody" class="divide-y divide-slate-100">
+                        <!-- Rows render here -->
+                    </tbody>
+                </table>
             </div>
         </section>
 
@@ -121,6 +145,21 @@
         </div>
     </div>
 
+    <!-- SMART Goal Modal -->
+    <div id="goalModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full mx-4 overflow-hidden">
+            <div class="p-6">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Update SMART Goal</h3>
+                <p class="text-sm text-slate-500 mb-4" id="goalModalDesc"></p>
+                <textarea id="goalText" rows="4" placeholder="Specific, Measurable, Achievable, Relevant, Time-Bound..." class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block w-full p-2.5 mb-5 resize-none"></textarea>
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeModals()" class="text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors">Cancel</button>
+                    <button onclick="submitGoal()" class="text-white bg-rose-600 hover:bg-rose-700 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors">Save Goal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Delete Confirmation Modal -->
     <div id="deleteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-lg max-w-sm w-full mx-4 overflow-hidden">
@@ -143,7 +182,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup (Replaced with your actual config from Firebase Console)
+        // Firebase Setup
         const firebaseConfig = {
             apiKey: "AIzaSyDi2nJf8Jh9BMeTSUvqNvtVYUlXoLHRyTY",
             authDomain: "obsotracker.firebaseapp.com",
@@ -166,6 +205,7 @@
         let state = {
             staff: ["Alice Smith", "Bob Jones", "Charlie Davis"],
             records: {}, 
+            smartGoals: {}, // New state for SMART goals
             currentFiscalMonth: "",
             viewMonth: ""
         };
@@ -228,10 +268,10 @@
                     const data = docSnap.data();
                     state.staff = data.staff || [];
                     state.records = data.records || {};
+                    state.smartGoals = data.smartGoals || {};
                     ensureMonthStructure(state.viewMonth);
                     render();
                 } else {
-                    // Document doesn't exist yet, so we save our default state right away
                     ensureMonthStructure(state.viewMonth);
                     saveState();
                     render();
@@ -248,7 +288,8 @@
             try {
                 await setDoc(docRef, {
                     staff: state.staff,
-                    records: state.records
+                    records: state.records,
+                    smartGoals: state.smartGoals
                 }, { merge: true });
             } catch (error) {
                 console.error("Error saving data:", error);
@@ -319,6 +360,16 @@
         }
         window.openAddModal = openAddModal;
 
+        function openGoalModal(staffName) {
+            pendingAction = { action: 'goal', staffName };
+            document.getElementById('goalModalDesc').innerText = `Setting goal for ${staffName}`;
+            document.getElementById('goalText').value = state.smartGoals[staffName] || '';
+            document.getElementById('goalModal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
+            setTimeout(() => document.getElementById('goalText').focus(), 100);
+        }
+        window.openGoalModal = openGoalModal;
+
         function openDeleteModal(type, staffName, recordId) {
             pendingAction = { action: 'delete', type, staffName, recordId };
             document.getElementById('modalTitleDelete').innerText = 'Delete Entry?';
@@ -331,6 +382,7 @@
         function closeModals() {
             document.getElementById('initialsModal').classList.add('hidden');
             document.getElementById('deleteModal').classList.add('hidden');
+            document.getElementById('goalModal').classList.add('hidden');
             document.body.classList.remove('modal-open');
             pendingAction = null;
         }
@@ -357,9 +409,26 @@
         }
         window.submitEntry = submitEntry;
 
+        async function submitGoal() {
+            const goalText = document.getElementById('goalText').value.trim();
+            const { staffName } = pendingAction;
+            
+            if (goalText) {
+                state.smartGoals[staffName] = goalText;
+            } else {
+                delete state.smartGoals[staffName]; // remove if they clear it out entirely
+            }
+            
+            closeModals();
+            await saveState();
+            render();
+        }
+        window.submitGoal = submitGoal;
+
         async function confirmDelete() {
             if (pendingAction.action === 'delete_staff') {
                 state.staff = state.staff.filter(s => s !== pendingAction.staffName);
+                delete state.smartGoals[pendingAction.staffName]; // clean up their goal
             } else {
                 const { type, staffName, recordId } = pendingAction;
                 state.records[state.viewMonth][type][staffName] = state.records[state.viewMonth][type][staffName].filter(r => r.id !== recordId);
@@ -383,6 +452,7 @@
                 `<option value="${m}" ${m === state.viewMonth ? 'selected' : ''}>${m}${m === state.currentFiscalMonth ? ' (Current)' : ''}</option>`
             ).join('');
 
+            // Render Staff
             const staffContainer = document.getElementById('staffContainer');
             staffContainer.innerHTML = state.staff.map(s => `
                 <div class="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-medium border border-slate-200">
@@ -393,6 +463,24 @@
                 </div>
             `).join('');
 
+            // Render SMART Goals
+            const goalTableBody = document.getElementById('goalTableBody');
+            goalTableBody.innerHTML = state.staff.map(staffName => {
+                const currentGoal = state.smartGoals[staffName] || '<span class="text-slate-400 italic">No active goal set.</span>';
+                return `
+                    <tr class="hover:bg-slate-50/50 transition-colors">
+                        <td class="px-6 py-4 font-medium text-slate-900">${staffName}</td>
+                        <td class="px-6 py-4 text-slate-700 max-w-md whitespace-pre-wrap">${currentGoal}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button onclick="openGoalModal('${staffName}')" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 p-2 rounded-md transition-colors focus:outline-none" title="Update Goal">
+                                <i data-lucide="pencil" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Render Obs/Coach
             renderTable('obs', 'obsTableBody', GOALS.obs);
             renderTable('coach', 'coachTableBody', GOALS.coach);
 
