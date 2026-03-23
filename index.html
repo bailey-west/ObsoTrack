@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ObsoTrak™</title>
+    <title>Store Management Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -19,8 +19,8 @@
         <!-- Header -->
         <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
             <div>
-                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">ObsoTrak™</h1>
-                <p class="text-slate-500 mt-1">Observations & Coachings</p>
+                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Management Tracker</h1>
+                <p class="text-slate-500 mt-1">Observations & Coaching</p>
             </div>
             <div class="flex items-center gap-3">
                 <label for="monthSelect" class="text-sm font-medium text-slate-600">Fiscal Month:</label>
@@ -29,30 +29,38 @@
         </header>
 
         <!-- Staff Management -->
-        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-8">
-            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                <i data-lucide="users" class="w-5 h-5 text-blue-600"></i> Team Members
-            </h2>
-            <div class="flex flex-wrap gap-3" id="staffContainer">
-                <!-- Staff chips will render here -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            <div class="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center cursor-pointer select-none" onclick="toggleSection('staffSection')">
+                <h2 class="text-lg font-semibold flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-blue-600"></i> Team Members
+                </h2>
+                <i data-lucide="chevron-down" id="staffSection-icon" class="w-5 h-5 text-slate-400 transition-transform -rotate-90"></i>
             </div>
-            <div class="mt-4 flex gap-2 max-w-md">
-                <input type="text" id="newStaffName" placeholder="New staff name..." class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
-                <button onclick="addStaff()" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none transition-colors whitespace-nowrap">
-                    Add Staff
-                </button>
+            <div id="staffSection" class="hidden p-4 sm:p-5">
+                <div class="flex flex-wrap gap-2" id="staffContainer">
+                    <!-- Staff chips will render here -->
+                </div>
+                <div class="mt-4 flex gap-2 max-w-sm">
+                    <input type="text" id="newStaffName" placeholder="New staff name..." class="bg-slate-50 border border-slate-300 text-slate-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+                    <button onclick="addStaff()" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 focus:outline-none transition-colors whitespace-nowrap">
+                        Add Staff
+                    </button>
+                </div>
             </div>
         </section>
 
         <!-- Observations Table -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div class="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center cursor-pointer select-none" onclick="toggleSection('obsSection')">
                 <h2 class="text-lg font-semibold flex items-center gap-2">
                     <i data-lucide="eye" class="w-5 h-5 text-indigo-600"></i> Observations
                 </h2>
-                <span class="text-sm text-slate-500 font-medium">Goal: 4 per month</span>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-slate-500 font-medium hidden sm:inline">Goal: 4 per month</span>
+                    <i data-lucide="chevron-down" id="obsSection-icon" class="w-5 h-5 text-slate-400 transition-transform -rotate-90"></i>
+                </div>
             </div>
-            <div class="overflow-x-auto">
+            <div id="obsSection" class="hidden overflow-x-auto">
                 <table class="w-full text-sm text-left text-slate-600">
                     <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                         <tr>
@@ -71,13 +79,16 @@
 
         <!-- Coaching Table -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            <div class="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div class="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center cursor-pointer select-none" onclick="toggleSection('coachSection')">
                 <h2 class="text-lg font-semibold flex items-center gap-2">
                     <i data-lucide="message-square" class="w-5 h-5 text-emerald-600"></i> Coaching Sessions
                 </h2>
-                <span class="text-sm text-slate-500 font-medium">Goal: 2 per month</span>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-slate-500 font-medium hidden sm:inline">Goal: 2 per month</span>
+                    <i data-lucide="chevron-down" id="coachSection-icon" class="w-5 h-5 text-slate-400 transition-transform -rotate-90"></i>
+                </div>
             </div>
-            <div class="overflow-x-auto">
+            <div id="coachSection" class="hidden overflow-x-auto">
                 <table class="w-full text-sm text-left text-slate-600">
                     <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
                         <tr>
@@ -117,8 +128,8 @@
                 <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
                     <i data-lucide="alert-triangle" class="w-6 h-6"></i>
                 </div>
-                <h3 class="text-lg font-bold text-slate-900 mb-2">Delete Entry?</h3>
-                <p class="text-sm text-slate-500 mb-5">Are you sure you want to delete this entry? This action cannot be undone.</p>
+                <h3 class="text-lg font-bold text-slate-900 mb-2" id="modalTitleDelete">Delete Entry?</h3>
+                <p class="text-sm text-slate-500 mb-5" id="modalDescDelete">Are you sure you want to delete this entry? This action cannot be undone.</p>
                 <div class="flex gap-3 justify-end">
                     <button onclick="closeModals()" class="text-slate-600 bg-slate-100 hover:bg-slate-200 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors">Cancel</button>
                     <button onclick="confirmDelete()" class="text-white bg-red-600 hover:bg-red-700 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors">Delete</button>
@@ -260,6 +271,20 @@
             }
         }
 
+        // --- UI Interactions ---
+        function toggleSection(sectionId) {
+            const content = document.getElementById(sectionId);
+            const icon = document.getElementById(sectionId + '-icon');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.remove('-rotate-90');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.add('-rotate-90');
+            }
+        }
+        window.toggleSection = toggleSection;
+
         async function addStaff() {
             const input = document.getElementById('newStaffName');
             const name = input.value.trim();
@@ -273,12 +298,14 @@
         }
         window.addStaff = addStaff;
 
-        async function removeStaff(name) {
-            state.staff = state.staff.filter(s => s !== name);
-            await saveState();
-            render();
+        function confirmStaffDelete(staffName) {
+            pendingAction = { action: 'delete_staff', staffName };
+            document.getElementById('modalTitleDelete').innerText = 'Remove Team Member?';
+            document.getElementById('modalDescDelete').innerText = `Are you sure you want to remove ${staffName}? They will be removed from your active list.`;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.body.classList.add('modal-open');
         }
-        window.removeStaff = removeStaff;
+        window.confirmStaffDelete = confirmStaffDelete;
 
         // --- Modals ---
         function openAddModal(type, staffName) {
@@ -294,6 +321,8 @@
 
         function openDeleteModal(type, staffName, recordId) {
             pendingAction = { action: 'delete', type, staffName, recordId };
+            document.getElementById('modalTitleDelete').innerText = 'Delete Entry?';
+            document.getElementById('modalDescDelete').innerText = 'Are you sure you want to delete this entry? This action cannot be undone.';
             document.getElementById('deleteModal').classList.remove('hidden');
             document.body.classList.add('modal-open');
         }
@@ -329,8 +358,13 @@
         window.submitEntry = submitEntry;
 
         async function confirmDelete() {
-            const { type, staffName, recordId } = pendingAction;
-            state.records[state.viewMonth][type][staffName] = state.records[state.viewMonth][type][staffName].filter(r => r.id !== recordId);
+            if (pendingAction.action === 'delete_staff') {
+                state.staff = state.staff.filter(s => s !== pendingAction.staffName);
+            } else {
+                const { type, staffName, recordId } = pendingAction;
+                state.records[state.viewMonth][type][staffName] = state.records[state.viewMonth][type][staffName].filter(r => r.id !== recordId);
+            }
+            
             closeModals();
             await saveState();
             render();
@@ -351,10 +385,10 @@
 
             const staffContainer = document.getElementById('staffContainer');
             staffContainer.innerHTML = state.staff.map(s => `
-                <div class="flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full text-sm font-medium border border-slate-200">
+                <div class="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full text-xs font-medium border border-slate-200">
                     ${s}
-                    <button onclick="removeStaff('${s}')" class="text-slate-400 hover:text-red-500 transition-colors focus:outline-none">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                    <button onclick="confirmStaffDelete('${s}')" class="text-slate-400 hover:text-red-500 transition-colors focus:outline-none p-0.5 rounded-full hover:bg-slate-200">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
             `).join('');
