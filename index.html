@@ -191,23 +191,20 @@
                 if (e.key === 'Enter') addStaff();
             });
 
-            // Initialize Auth
-            const initAuth = async () => {
-                try {
-                    await signInAnonymously(auth);
-                } catch (error) {
-                    console.error("Auth error:", error);
-                }
-            };
-            
-            onAuthStateChanged(auth, (user) => {
-                currentUser = user;
+            // Initialize Auth robustly
+            onAuthStateChanged(auth, async (user) => {
                 if (user) {
+                    currentUser = user;
                     setupRealtimeListener();
+                } else {
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Auth error:", error);
+                        alert("Could not log into Firebase securely. Check config.");
+                    }
                 }
             });
-
-            await initAuth();
         }
 
         function setupRealtimeListener() {
@@ -219,11 +216,17 @@
                     const data = docSnap.data();
                     state.staff = data.staff || [];
                     state.records = data.records || {};
+                    ensureMonthStructure(state.viewMonth);
+                    render();
+                } else {
+                    // Document doesn't exist yet, so we save our default state right away
+                    ensureMonthStructure(state.viewMonth);
+                    saveState();
+                    render();
                 }
-                ensureMonthStructure(state.viewMonth);
-                render();
             }, (error) => {
                 console.error("Error listening to data:", error);
+                alert("Database access denied! Please check your Firestore Security Rules.");
             });
         }
 
@@ -237,6 +240,7 @@
                 }, { merge: true });
             } catch (error) {
                 console.error("Error saving data:", error);
+                alert("Failed to save changes! Check your Firestore Security Rules.");
             }
         }
 
