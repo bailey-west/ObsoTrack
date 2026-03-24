@@ -22,7 +22,7 @@
                 <h1 class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 tracking-tight">ObsoTrak™</h1>
                 <p class="text-slate-500 mt-1 font-medium">Observations & Coachings</p>
             </div>
-            <div class="flex items-center gap-3 sm:gap-4">
+            <div class="flex items-center gap-3 sm:gap-4 flex-wrap">
                 <button id="upgradeBtn" onclick="openUpgradeModal()" class="hidden items-center gap-2 text-xs sm:text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 font-bold px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl transition-all shadow-sm" title="Save Progress">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     <span class="hidden sm:inline">Save Progress</span>
@@ -31,6 +31,10 @@
                     <label for="monthSelect" class="text-sm font-semibold text-slate-500 pl-2">Fiscal Month:</label>
                     <select id="monthSelect" class="bg-slate-50 border-none text-slate-900 text-sm rounded-lg focus:ring-2 focus:ring-blue-500 block p-2 font-medium cursor-pointer transition-shadow"></select>
                 </div>
+                <button onclick="migrateOldData()" class="px-3 py-2.5 bg-amber-100 text-amber-700 hover:bg-amber-200 hover:text-amber-800 transition-colors font-bold rounded-xl shadow-sm border border-amber-200 text-sm flex items-center gap-2">
+                    <i data-lucide="database" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Migrate Data</span>
+                </button>
                 <button onclick="signOutUser()" class="p-2.5 bg-white text-slate-400 hover:text-red-500 rounded-xl shadow-sm border border-slate-100 hover:border-red-100 transition-all focus:outline-none" title="Sign Out">
                     <i data-lucide="log-out" class="w-5 h-5"></i>
                 </button>
@@ -266,7 +270,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, linkWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // ADDED getDoc to the imports below
+        import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Setup
         const firebaseConfig = {
@@ -462,10 +467,31 @@
             });
         };
 
+        // --- Data Migration Function ---
+        window.migrateOldData = async () => {
+            if (!currentUser) return alert("Please log in first!");
+            
+            const oldRef = doc(db, 'users', currentUser.uid, 'tracker', 'main_data');
+            const newRef = doc(db, 'store', 'main_tracker');
+            
+            try {
+                const docSnap = await getDoc(oldRef);
+                if (docSnap.exists()) {
+                    await setDoc(newRef, docSnap.data(), { merge: true });
+                    alert("Success! Your old data is now in the shared folder. Refresh the page to see it.");
+                } else {
+                    alert("No old data found for this account.");
+                }
+            } catch (error) {
+                console.error("Migration error:", error);
+                alert("Failed to migrate. Check your console or Firestore rules.");
+            }
+        };
+
         function setupRealtimeListener() {
             if (!currentUser) return;
             
-            // CHANGED: Pointing to a shared document instead of a user-specific one
+            // Pointing to a shared document instead of a user-specific one
             const docRef = doc(db, 'store', 'main_tracker'); 
             
             unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
@@ -490,7 +516,7 @@
         async function saveState() {
             if (!currentUser) return;
             
-            // CHANGED: Saving to the same shared document
+            // Saving to the same shared document
             const docRef = doc(db, 'store', 'main_tracker'); 
             try {
                 await setDoc(docRef, {
