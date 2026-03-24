@@ -178,10 +178,6 @@
                     </svg>
                     Continue with Google
                 </button>
-                <button onclick="handleAnonymousSignIn()" class="flex items-center justify-center gap-3 text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:shadow-sm font-bold rounded-xl text-sm px-5 py-3 transition-all w-full tracking-wide">
-                    <i data-lucide="user" class="w-5 h-5 text-slate-500"></i>
-                    Continue as Guest
-                </button>
             </div>
             <p id="authError" class="text-red-500 text-xs text-center mt-5 font-bold hidden bg-red-50 p-2 rounded-lg"></p>
         </div>
@@ -269,7 +265,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously, onAuthStateChanged, signOut, linkWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, linkWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Setup
@@ -362,7 +358,11 @@
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
             const errEl = document.getElementById('authError');
-            if(!email || !password) return;
+            if(!email || !password) {
+                errEl.innerText = "Please enter an email and password.";
+                errEl.classList.remove('hidden');
+                return;
+            }
             try {
                 await signInWithEmailAndPassword(auth, email, password);
                 errEl.classList.add('hidden');
@@ -376,7 +376,11 @@
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
             const errEl = document.getElementById('authError');
-            if(!email || !password) return;
+            if(!email || !password) {
+                errEl.innerText = "Please enter an email and password to sign up.";
+                errEl.classList.remove('hidden');
+                return;
+            }
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
                 errEl.classList.add('hidden');
@@ -391,17 +395,6 @@
             const errEl = document.getElementById('authError');
             try {
                 await signInWithPopup(auth, provider);
-                errEl.classList.add('hidden');
-            } catch (error) {
-                errEl.innerText = error.message.replace("Firebase: ", "");
-                errEl.classList.remove('hidden');
-            }
-        };
-
-        window.handleAnonymousSignIn = async () => {
-            const errEl = document.getElementById('authError');
-            try {
-                await signInAnonymously(auth);
                 errEl.classList.add('hidden');
             } catch (error) {
                 errEl.innerText = error.message.replace("Firebase: ", "");
@@ -425,7 +418,12 @@
             const email = document.getElementById('upgradeEmail').value;
             const password = document.getElementById('upgradePassword').value;
             const errEl = document.getElementById('upgradeError');
-            if(!email || !password) return;
+            
+            if(!email || !password) {
+                errEl.innerText = "Please enter an email and password to save progress.";
+                errEl.classList.remove('hidden');
+                return;
+            }
 
             try {
                 // To upgrade an anonymous account, we update their email and password directly
