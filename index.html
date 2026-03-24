@@ -464,7 +464,9 @@
 
         function setupRealtimeListener() {
             if (!currentUser) return;
-            const docRef = doc(db, 'users', currentUser.uid, 'tracker', 'main_data');
+            
+            // CHANGED: Pointing to a shared document instead of a user-specific one
+            const docRef = doc(db, 'store', 'main_tracker'); 
             
             unsubscribeSnapshot = onSnapshot(docRef, (docSnap) => {
                 if (docSnap.exists()) {
@@ -487,7 +489,9 @@
 
         async function saveState() {
             if (!currentUser) return;
-            const docRef = doc(db, 'users', currentUser.uid, 'tracker', 'main_data');
+            
+            // CHANGED: Saving to the same shared document
+            const docRef = doc(db, 'store', 'main_tracker'); 
             try {
                 await setDoc(docRef, {
                     staff: state.staff,
