@@ -373,6 +373,23 @@
         const GOALS = { obs: 4, coach: 2 };
         const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
+        const MANAGER_COLORS = [
+            { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200/50' },
+            { bg: 'bg-fuchsia-100', text: 'text-fuchsia-700', border: 'border-fuchsia-200/50' },
+            { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200/50' },
+            { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200/50' },
+            { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200/50' },
+            { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200/50' },
+            { bg: 'bg-cyan-100', text: 'text-cyan-700', border: 'border-cyan-200/50' }
+        ];
+
+        function getManagerColor(managerName) {
+            if (!managerName || managerName === 'ZZZ_Unassigned') return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
+            const index = state.managers.indexOf(managerName);
+            if (index === -1) return { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200' };
+            return MANAGER_COLORS[index % MANAGER_COLORS.length];
+        }
+
         let state = {
             staff: ["Alice Smith", "Bob Jones", "Charlie Davis"],
             records: {}, 
@@ -982,34 +999,45 @@
                 <i data-lucide="chevron-down" id="coachSection-icon" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isCoachHidden ? '-rotate-90' : ''}"></i>
             `;
 
-            // Sort staff by manager assignment for rendering
-            const sortedStaff = [...state.staff].sort((a, b) => {
-                const mgrA = state.staffAssignments[a] || 'ZZZ_Unassigned';
-                const mgrB = state.staffAssignments[b] || 'ZZZ_Unassigned';
-                if (mgrA < mgrB) return -1;
-                if (mgrA > mgrB) return 1;
-                return a.localeCompare(b);
+            // Group staff by manager assignment
+            const groupedStaff = { unassigned: [] };
+            state.managers.forEach(m => groupedStaff[m] = []);
+            state.staff.forEach(s => {
+                const mgr = state.staffAssignments[s];
+                if (mgr && groupedStaff[mgr]) {
+                    groupedStaff[mgr].push(s);
+                } else {
+                    groupedStaff.unassigned.push(s);
+                }
             });
+            // Sort each group alphabetically
+            Object.keys(groupedStaff).forEach(k => groupedStaff[k].sort((a,b) => a.localeCompare(b)));
 
             // Render Managers Tags
             const managerContainer = document.getElementById('managerContainer');
-            managerContainer.innerHTML = state.managers.map(m => `
-                <div class="flex items-center gap-1.5 bg-slate-800 text-white px-4 py-1.5 rounded-xl text-sm font-semibold shadow-sm transition-all group">
-                    <i data-lucide="user-check" class="w-4 h-4 text-slate-300"></i> ${m}
-                    <button onclick="confirmManagerDelete('${m}')" class="text-slate-400 hover:text-red-400 transition-colors focus:outline-none p-0.5 rounded-full ml-1">
+            managerContainer.innerHTML = state.managers.map((m, index) => {
+                const c = getManagerColor(m);
+                return `
+                <div class="flex items-center gap-1.5 ${c.bg} ${c.text} px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm border ${c.border} transition-all group">
+                    <i data-lucide="user-check" class="w-4 h-4"></i> ${m}
+                    <button onclick="confirmManagerDelete('${m}')" class="opacity-60 hover:opacity-100 hover:text-red-600 transition-all focus:outline-none p-0.5 rounded-full ml-1">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
                 </div>
-            `).join('');
+                `;
+            }).join('');
+            
             if (state.managers.length === 0) {
                 managerContainer.innerHTML = '<span class="text-sm text-slate-400 italic font-medium py-1.5">No managers added yet.</span>';
             }
 
             // Render Staff Tags (Clickable for assignment)
             const staffContainer = document.getElementById('staffContainer');
-            staffContainer.innerHTML = sortedStaff.map(s => {
-                const mgr = state.staffAssignments[s];
-                const mgrHtml = mgr ? `<span class="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm border border-blue-200/50">${mgr}</span>` : '';
+            let staffHtml = '';
+            
+            const renderStaffTag = (s, mgr) => {
+                const color = getManagerColor(mgr);
+                const mgrHtml = mgr ? `<span class="${color.bg} ${color.text} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm border ${color.border}">${mgr}</span>` : '';
                 return `
                 <div onclick="openAssignManagerModal('${s}')" title="Click to assign manager" class="cursor-pointer flex items-center gap-1.5 bg-white text-slate-700 px-3 py-1.5 rounded-full text-sm font-semibold border border-slate-200 shadow-sm hover:shadow hover:border-blue-300 hover:bg-slate-50 transition-all group">
                     ${s} ${mgrHtml}
@@ -1018,94 +1046,147 @@
                     </button>
                 </div>
                 `;
-            }).join('');
+            };
+
+            state.managers.forEach(mgr => {
+                if (groupedStaff[mgr].length > 0) {
+                    staffHtml += `<div class="w-full text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-2 mb-1 ml-1 border-b border-slate-100 pb-1">${mgr}'s Team</div>`;
+                    groupedStaff[mgr].forEach(s => {
+                        staffHtml += renderStaffTag(s, mgr);
+                    });
+                }
+            });
+
+            if (groupedStaff.unassigned.length > 0) {
+                staffHtml += `<div class="w-full text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-2 mb-1 ml-1 border-b border-slate-100 pb-1">Unassigned</div>`;
+                groupedStaff.unassigned.forEach(s => {
+                    staffHtml += renderStaffTag(s, null);
+                });
+            }
+            staffContainer.innerHTML = staffHtml;
 
             // Render SMART Goals Table
             const goalTableBody = document.getElementById('goalTableBody');
-            goalTableBody.innerHTML = sortedStaff.map(staffName => {
-                const goalData = state.smartGoals[staffName];
-                const managerName = state.staffAssignments[staffName];
-                const managerBadge = managerName ? `<span class="ml-2 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold border border-slate-200 shadow-sm whitespace-nowrap">${managerName}</span>` : '';
-                
-                let currentGoalHtml = '<span class="text-slate-400/80 italic font-medium">No active goal set.</span>';
-                
-                if (goalData) {
-                    const text = typeof goalData === 'string' ? goalData : goalData.text;
-                    const timestampHtml = goalData.timestamp ? `<div class="text-[11px] font-bold text-rose-500/90 mt-1.5 uppercase tracking-wider flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i>Set on ${goalData.timestamp}</div>` : '';
-                    currentGoalHtml = `<div class="font-medium text-slate-800">${text}</div>${timestampHtml}`;
+            let goalHtml = '';
+            
+            const renderGoalRowGroup = (mgr, staffList) => {
+                if (staffList.length === 0) return '';
+                let html = '';
+                if (mgr) {
+                    const c = getManagerColor(mgr);
+                    html += `<tr class="${c.bg}/30"><td colspan="3" class="px-6 py-2 text-[10px] font-bold uppercase tracking-wider ${c.text} border-y ${c.border}">${mgr}'s Team</td></tr>`;
+                } else {
+                    html += `<tr class="bg-slate-50/80"><td colspan="3" class="px-6 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-y border-slate-200">Unassigned</td></tr>`;
                 }
+                
+                staffList.forEach(staffName => {
+                    const goalData = state.smartGoals[staffName];
+                    const color = getManagerColor(mgr);
+                    const managerBadge = mgr ? `<span class="ml-2 text-[10px] ${color.bg} ${color.text} px-2 py-0.5 rounded-md font-bold border ${color.border} shadow-sm whitespace-nowrap">${mgr}</span>` : '';
+                    
+                    let currentGoalHtml = '<span class="text-slate-400/80 italic font-medium">No active goal set.</span>';
+                    
+                    if (goalData) {
+                        const text = typeof goalData === 'string' ? goalData : goalData.text;
+                        const timestampHtml = goalData.timestamp ? `<div class="text-[11px] font-bold text-rose-500/90 mt-1.5 uppercase tracking-wider flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i>Set on ${goalData.timestamp}</div>` : '';
+                        currentGoalHtml = `<div class="font-medium text-slate-800">${text}</div>${timestampHtml}`;
+                    }
 
-                return `
-                    <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
-                        <td class="px-6 py-4 font-bold text-slate-900">${staffName} ${managerBadge}</td>
-                        <td class="px-6 py-4 text-slate-700 max-w-md whitespace-pre-wrap">${currentGoalHtml}</td>
-                        <td class="px-6 py-4 text-right">
-                            <button onclick="openGoalModal('${staffName}')" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Update Goal">
-                                <i data-lucide="pencil" class="w-4.5 h-4.5"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                    html += `
+                        <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
+                            <td class="px-6 py-4 font-bold text-slate-900">${staffName} ${managerBadge}</td>
+                            <td class="px-6 py-4 text-slate-700 max-w-md whitespace-pre-wrap">${currentGoalHtml}</td>
+                            <td class="px-6 py-4 text-right">
+                                <button onclick="openGoalModal('${staffName}')" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Update Goal">
+                                    <i data-lucide="pencil" class="w-4.5 h-4.5"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                return html;
+            };
 
-            // Render Obs/Coach Tables with sorted staff
-            renderTable('obs', 'obsTableBody', GOALS.obs, sortedStaff);
-            renderTable('coach', 'coachTableBody', GOALS.coach, sortedStaff);
+            state.managers.forEach(mgr => goalHtml += renderGoalRowGroup(mgr, groupedStaff[mgr]));
+            if (groupedStaff.unassigned.length > 0) goalHtml += renderGoalRowGroup(null, groupedStaff.unassigned);
+            goalTableBody.innerHTML = goalHtml;
+
+            // Render Obs/Coach Tables with grouped staff
+            renderTable('obs', 'obsTableBody', GOALS.obs, groupedStaff);
+            renderTable('coach', 'coachTableBody', GOALS.coach, groupedStaff);
 
             lucide.createIcons();
         }
 
-        function renderTable(type, tbodyId, goal, sortedStaff) {
+        function renderTable(type, tbodyId, goal, groupedStaff) {
             const tbody = document.getElementById(tbodyId);
             const monthData = state.records[state.viewMonth][type];
             const isCurrentMonth = state.viewMonth === state.currentFiscalMonth;
+            let tableHtml = '';
 
-            tbody.innerHTML = sortedStaff.map(staffName => {
-                const entries = monthData[staffName] || [];
-                const count = entries.length;
-                const progressPct = Math.min((count / goal) * 100, 100);
-                const progressColor = count >= goal ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-emerald-200 shadow-sm' : (count > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500 shadow-amber-200 shadow-sm' : 'bg-slate-200');
-                
-                const managerName = state.staffAssignments[staffName];
-                const managerBadge = managerName ? `<span class="ml-2 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold border border-slate-200 shadow-sm whitespace-nowrap">${managerName}</span>` : '';
-
-                let slotsHtml = entries.map(entry => `
-                    <button onclick="openDeleteModal('${type}', '${staffName}', '${entry.id}')" class="slot-pill group inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200/60 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold mr-2 mb-2 hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-all">
-                        ${entry.initials} <span class="text-indigo-400/80 font-semibold text-[10px] group-hover:text-red-400">${entry.timestamp}</span>
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity absolute -right-1 -top-1 bg-red-100 text-red-600 rounded-full p-0.5 shadow-sm hidden group-hover:block"></i>
-                    </button>
-                `).join('');
-
-                for (let i = count; i < goal; i++) {
-                    slotsHtml += `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-slate-400 mr-2 mb-2 text-xs font-bold shadow-sm">${i+1}</span>`;
+            const renderRowGroup = (mgr, staffList) => {
+                if (staffList.length === 0) return '';
+                let html = '';
+                if (mgr) {
+                    const c = getManagerColor(mgr);
+                    html += `<tr class="${c.bg}/30"><td colspan="4" class="px-6 py-2 text-[10px] font-bold uppercase tracking-wider ${c.text} border-y ${c.border}">${mgr}'s Team</td></tr>`;
+                } else {
+                    html += `<tr class="bg-slate-50/80"><td colspan="4" class="px-6 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-y border-slate-200">Unassigned</td></tr>`;
                 }
 
-                return `
-                    <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
-                        <td class="px-6 py-4 font-bold text-slate-900">${staffName} ${managerBadge}</td>
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-20 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                                    <div class="h-full ${progressColor} transition-all duration-700 ease-out rounded-full" style="width: ${progressPct}%"></div>
+                staffList.forEach(staffName => {
+                    const entries = monthData[staffName] || [];
+                    const count = entries.length;
+                    const progressPct = Math.min((count / goal) * 100, 100);
+                    const progressColor = count >= goal ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-emerald-200 shadow-sm' : (count > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500 shadow-amber-200 shadow-sm' : 'bg-slate-200');
+                    
+                    const color = getManagerColor(mgr);
+                    const managerBadge = mgr ? `<span class="ml-2 text-[10px] ${color.bg} ${color.text} px-2 py-0.5 rounded-md font-bold border ${color.border} shadow-sm whitespace-nowrap">${mgr}</span>` : '';
+
+                    let slotsHtml = entries.map(entry => `
+                        <button onclick="openDeleteModal('${type}', '${staffName}', '${entry.id}')" class="slot-pill group inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200/60 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold mr-2 mb-2 hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-all">
+                            ${entry.initials} <span class="text-indigo-400/80 font-semibold text-[10px] group-hover:text-red-400">${entry.timestamp}</span>
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity absolute -right-1 -top-1 bg-red-100 text-red-600 rounded-full p-0.5 shadow-sm hidden group-hover:block"></i>
+                        </button>
+                    `).join('');
+
+                    for (let i = count; i < goal; i++) {
+                        slotsHtml += `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-slate-400 mr-2 mb-2 text-xs font-bold shadow-sm">${i+1}</span>`;
+                    }
+
+                    html += `
+                        <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
+                            <td class="px-6 py-4 font-bold text-slate-900">${staffName} ${managerBadge}</td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-20 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                                        <div class="h-full ${progressColor} transition-all duration-700 ease-out rounded-full" style="width: ${progressPct}%"></div>
+                                    </div>
+                                    <span class="text-xs font-extrabold tracking-wide ${count >= goal ? 'text-emerald-600' : 'text-slate-500'}">${count}/${goal}</span>
                                 </div>
-                                <span class="text-xs font-extrabold tracking-wide ${count >= goal ? 'text-emerald-600' : 'text-slate-500'}">${count}/${goal}</span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="flex flex-wrap items-center relative">
-                                ${slotsHtml}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 text-right">
-                            ${isCurrentMonth ? `
-                            <button onclick="openAddModal('${type}', '${staffName}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Add Entry">
-                                <i data-lucide="plus" class="w-5 h-5"></i>
-                            </button>
-                            ` : '<span class="text-xs font-bold text-slate-400/80 italic bg-slate-100 px-2.5 py-1 rounded-lg">Archived</span>'}
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap items-center relative">
+                                    ${slotsHtml}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                ${isCurrentMonth ? `
+                                <button onclick="openAddModal('${type}', '${staffName}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Add Entry">
+                                    <i data-lucide="plus" class="w-5 h-5"></i>
+                                </button>
+                                ` : '<span class="text-xs font-bold text-slate-400/80 italic bg-slate-100 px-2.5 py-1 rounded-lg">Archived</span>'}
+                            </td>
+                        </tr>
+                    `;
+                });
+                return html;
+            };
+
+            state.managers.forEach(mgr => tableHtml += renderRowGroup(mgr, groupedStaff[mgr]));
+            if (groupedStaff.unassigned.length > 0) tableHtml += renderRowGroup(null, groupedStaff.unassigned);
+            
+            tbody.innerHTML = tableHtml;
         }
 
         window.onload = init;
