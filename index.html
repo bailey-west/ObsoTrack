@@ -1037,10 +1037,10 @@
             
             const renderStaffTag = (s, mgr) => {
                 const color = getManagerColor(mgr);
-                const mgrHtml = mgr ? `<span class="${color.bg} ${color.text} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm border ${color.border}">${mgr}</span>` : '';
+                const mgrHtml = mgr ? `<span class="${color.bg} ${color.text} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm border ${color.border} whitespace-nowrap">${mgr}</span>` : '';
                 return `
-                <div onclick="openAssignManagerModal('${s}')" title="Click to assign manager" class="cursor-pointer flex items-center gap-1.5 bg-white text-slate-700 px-3 py-1.5 rounded-full text-sm font-semibold border border-slate-200 shadow-sm hover:shadow hover:border-blue-300 hover:bg-slate-50 transition-all group">
-                    ${s} ${mgrHtml}
+                <div onclick="openAssignManagerModal('${s}')" title="Click to assign manager" class="cursor-pointer inline-flex items-center gap-1.5 bg-white text-slate-700 px-3 py-1.5 rounded-full text-sm font-semibold border border-slate-200 shadow-sm hover:shadow hover:border-blue-300 hover:bg-slate-50 transition-all group whitespace-nowrap">
+                    <span>${s}</span> ${mgrHtml}
                     <button onclick="event.stopPropagation(); confirmStaffDelete('${s}')" class="text-slate-400 hover:text-red-500 transition-colors focus:outline-none p-0.5 rounded-full hover:bg-red-50 ml-1">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
@@ -1094,7 +1094,12 @@
 
                     html += `
                         <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
-                            <td class="px-6 py-4 font-bold text-slate-900">${staffName} ${managerBadge}</td>
+                            <td class="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span>${staffName}</span>
+                                    ${managerBadge}
+                                </div>
+                            </td>
                             <td class="px-6 py-4 text-slate-700 max-w-md whitespace-pre-wrap">${currentGoalHtml}</td>
                             <td class="px-6 py-4 text-right">
                                 <button onclick="openGoalModal('${staffName}')" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Update Goal">
@@ -1156,7 +1161,12 @@
 
                     html += `
                         <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
-                            <td class="px-6 py-4 font-bold text-slate-900">${staffName} ${managerBadge}</td>
+                            <td class="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span>${staffName}</span>
+                                    ${managerBadge}
+                                </div>
+                            </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center gap-3">
                                     <div class="w-20 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
