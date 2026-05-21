@@ -1127,16 +1127,58 @@
             const tbody = document.getElementById(tbodyId);
             const monthData = state.records[state.viewMonth][type];
             const isCurrentMonth = state.viewMonth === state.currentFiscalMonth;
+            const timePct = calculateMonthProgress(state.viewMonth);
             let tableHtml = '';
 
             const renderRowGroup = (mgr, staffList) => {
                 if (staffList.length === 0) return '';
+                
+                // Calculate Manager Team Progress
+                let teamGoal = staffList.length * goal;
+                let teamCurrent = 0;
+                staffList.forEach(staffName => {
+                    const entries = monthData[staffName] || [];
+                    teamCurrent += Math.min(entries.length, goal);
+                });
+                let teamPct = teamGoal === 0 ? 0 : (teamCurrent / teamGoal) * 100;
+                let barColor = getProgressColorClass(teamPct, timePct);
+
                 let html = '';
                 if (mgr) {
                     const c = getManagerColor(mgr);
-                    html += `<tr class="${c.bg}/30"><td colspan="4" class="px-6 py-2 text-[10px] font-bold uppercase tracking-wider ${c.text} border-y ${c.border}">${mgr}'s Team</td></tr>`;
+                    html += `
+                    <tr class="${c.bg}/30">
+                        <td colspan="4" class="px-6 py-2 border-y ${c.border}">
+                            <div class="flex justify-between items-center w-full">
+                                <span class="text-[10px] font-bold uppercase tracking-wider ${c.text}">${mgr}'s Team</span>
+                                <div class="flex items-center gap-3">
+                                    <div class="hidden sm:flex flex-col items-end">
+                                        <div class="w-24 h-1.5 bg-white/60 rounded-full overflow-hidden shadow-inner">
+                                            <div class="h-full ${barColor} transition-all duration-700 ease-out" style="width: ${teamPct}%"></div>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] font-bold ${c.text} bg-white/60 px-2 py-0.5 rounded-full shadow-sm border border-white/40">${teamCurrent} / ${teamGoal}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
                 } else {
-                    html += `<tr class="bg-slate-50/80"><td colspan="4" class="px-6 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-y border-slate-200">Unassigned</td></tr>`;
+                    html += `
+                    <tr class="bg-slate-50/80">
+                        <td colspan="4" class="px-6 py-2 border-y border-slate-200">
+                            <div class="flex justify-between items-center w-full">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Unassigned</span>
+                                <div class="flex items-center gap-3">
+                                    <div class="hidden sm:flex flex-col items-end">
+                                        <div class="w-24 h-1.5 bg-slate-200/60 rounded-full overflow-hidden shadow-inner">
+                                            <div class="h-full ${barColor} transition-all duration-700 ease-out" style="width: ${teamPct}%"></div>
+                                        </div>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-200/60">${teamCurrent} / ${teamGoal}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>`;
                 }
 
                 staffList.forEach(staffName => {
