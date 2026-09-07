@@ -335,6 +335,9 @@
         </div>
     </div>
 
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-[200] flex flex-col gap-3 pointer-events-none"></div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, linkWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateEmail, updatePassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -356,6 +359,38 @@
         const db = getFirestore(app);
         let currentUser = null;
         let unsubscribeSnapshot = null;
+
+        // --- Toast Notifications ---
+        window.showToast = (message, type = 'info') => {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let bgClass = type === 'error' ? 'bg-red-600' : (type === 'success' ? 'bg-emerald-600' : 'bg-slate-800');
+            let icon = type === 'error' ? 'alert-circle' : (type === 'success' ? 'check-circle' : 'info');
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-bold transform transition-all duration-300 translate-x-full opacity-0 pointer-events-auto ${bgClass}`;
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-5 h-5 shrink-0"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" class="ml-2 opacity-70 hover:opacity-100 focus:outline-none shrink-0">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            `;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            });
+
+            // Auto-remove
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        };
 
         // --- Multi-Store Config ---
         const STORES = [
@@ -413,7 +448,7 @@
                     year += 1;
                 }
             }
-            return `${MONTH_NAMES[month]} ${year}`;
+            return `${MONTH_NAMES[month]}${year}`;
         }
 
         // Returns startDate and endDate for a given fiscal month string
@@ -626,7 +661,7 @@
                 closeUpgradeModal();
                 document.getElementById('upgradeBtn').classList.add('hidden');
                 document.getElementById('upgradeBtn').classList.remove('flex');
-                alert("Account successfully upgraded! Progress is now saved securely.");
+                showToast("Account successfully upgraded! Progress is now saved securely.", "success");
             } catch (error) {
                 errEl.innerText = error.message.replace("Firebase: ", "");
                 errEl.classList.remove('hidden');
@@ -642,7 +677,7 @@
                 closeUpgradeModal();
                 document.getElementById('upgradeBtn').classList.add('hidden');
                 document.getElementById('upgradeBtn').classList.remove('flex');
-                alert("Account successfully upgraded! Progress is now saved to your Google account.");
+                showToast("Account successfully upgraded! Progress is now saved to your Google account.", "success");
             } catch (error) {
                 errEl.innerText = error.message.replace("Firebase: ", "");
                 errEl.classList.remove('hidden');
@@ -706,7 +741,7 @@
                 }
             }, (error) => {
                 console.error("Error listening to data:", error);
-                alert("Database access denied! Please check your Firestore Security Rules.");
+                showToast("Database access denied! Please check your Firestore Security Rules.", "error");
             });
         }
 
@@ -724,7 +759,7 @@
                 }, { merge: true });
             } catch (error) {
                 console.error("Error saving data:", error);
-                alert("Failed to save changes! Check your Firestore Security Rules.");
+                showToast("Failed to save changes! Check your Firestore Security Rules.", "error");
             }
         }
 
@@ -880,6 +915,7 @@
             closeModals();
             await saveState();
             render();
+            showToast("Entry saved successfully.", "success");
         }
         window.submitEntry = submitEntry;
 
@@ -891,8 +927,10 @@
                 const now = new Date();
                 const timestamp = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 state.smartGoals[staffName] = { text: goalText, timestamp };
+                showToast("Goal updated.", "success");
             } else {
                 delete state.smartGoals[staffName]; // remove if they clear it out entirely
+                showToast("Goal cleared.", "info");
             }
             
             closeModals();
@@ -907,8 +945,10 @@
             
             if (manager) {
                 state.staffAssignments[staffName] = manager;
+                showToast(`Assigned ${staffName} to${manager}.`, "success");
             } else {
                 delete state.staffAssignments[staffName];
+                showToast(`${staffName} is now unassigned.`, "info");
             }
             
             closeModals();
@@ -922,6 +962,7 @@
                 state.staff = state.staff.filter(s => s !== pendingAction.staffName);
                 delete state.smartGoals[pendingAction.staffName]; // clean up their goal
                 delete state.staffAssignments[pendingAction.staffName]; // clean up assignment
+                showToast(`Removed team member ${pendingAction.staffName}.`, "info");
             } else if (pendingAction.action === 'delete_manager') {
                 state.managers = state.managers.filter(m => m !== pendingAction.managerName);
                 // Remove this manager from any staff assignments
@@ -930,9 +971,11 @@
                         delete state.staffAssignments[staff];
                     }
                 });
+                showToast(`Removed manager ${pendingAction.managerName}.`, "info");
             } else {
                 const { type, staffName, recordId } = pendingAction;
                 state.records[state.viewMonth][type][staffName] = state.records[state.viewMonth][type][staffName].filter(r => r.id !== recordId);
+                showToast("Entry deleted.", "info");
             }
             
             closeModals();
@@ -944,12 +987,18 @@
         function render() {
             ensureMonthStructure(state.viewMonth);
 
-            // Month Options render
+            // Month Options render with chronological sorting
             const monthSelect = document.getElementById('monthSelect');
             const allMonths = Object.keys(state.records);
             if (!allMonths.includes(state.currentFiscalMonth)) allMonths.push(state.currentFiscalMonth);
             
-            monthSelect.innerHTML = allMonths.sort().map(m => 
+            monthSelect.innerHTML = allMonths.sort((a, b) => {
+                const [monthA, yearA] = a.split(' ');
+                const [monthB, yearB] = b.split(' ');
+                
+                if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
+                return MONTH_NAMES.indexOf(monthA) - MONTH_NAMES.indexOf(monthB);
+            }).map(m => 
                 `<option value="${m}" ${m === state.viewMonth ? 'selected' : ''}>${m}${m === state.currentFiscalMonth ? ' (Current)' : ''}</option>`
             ).join('');
 
@@ -981,7 +1030,7 @@
                         <div class="h-full ${obsColor} transition-all duration-700 ease-out" style="width: ${obsStats.pct}%"></div>
                     </div>
                 </div>
-                <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold tracking-wide border border-slate-200 shadow-sm shrink-0">${obsStats.current} / ${obsStats.goal}</span>
+                <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold tracking-wide border border-slate-200 shadow-sm shrink-0">${obsStats.current} /${obsStats.goal}</span>
                 <i data-lucide="chevron-down" id="obsSection-icon" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isObsHidden ? '-rotate-90' : ''}"></i>
             `;
 
@@ -995,7 +1044,7 @@
                         <div class="h-full ${coachColor} transition-all duration-700 ease-out" style="width: ${coachStats.pct}%"></div>
                     </div>
                 </div>
-                <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold tracking-wide border border-slate-200 shadow-sm shrink-0">${coachStats.current} / ${coachStats.goal}</span>
+                <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-bold tracking-wide border border-slate-200 shadow-sm shrink-0">${coachStats.current} /${coachStats.goal}</span>
                 <i data-lucide="chevron-down" id="coachSection-icon" class="w-5 h-5 text-slate-400 transition-transform duration-300 ${isCoachHidden ? '-rotate-90' : ''}"></i>
             `;
 
@@ -1018,7 +1067,7 @@
             managerContainer.innerHTML = state.managers.map((m, index) => {
                 const c = getManagerColor(m);
                 return `
-                <div class="flex items-center gap-1.5 ${c.bg} ${c.text} px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm border ${c.border} transition-all group">
+                <div class="flex items-center gap-1.5 ${c.bg} ${c.text} px-4 py-1.5 rounded-xl text-sm font-bold shadow-sm border${c.border} transition-all group">
                     <i data-lucide="user-check" class="w-4 h-4"></i> ${m}
                     <button onclick="confirmManagerDelete('${m}')" class="opacity-60 hover:opacity-100 hover:text-red-600 transition-all focus:outline-none p-0.5 rounded-full ml-1">
                         <i data-lucide="x" class="w-4 h-4"></i>
@@ -1037,10 +1086,10 @@
             
             const renderStaffTag = (s, mgr) => {
                 const color = getManagerColor(mgr);
-                const mgrHtml = mgr ? `<span class="${color.bg} ${color.text} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm border ${color.border} whitespace-nowrap">${mgr}</span>` : '';
+                const mgrHtml = mgr ? `<span class="${color.bg}${color.text} text-[10px] px-1.5 py-0.5 rounded-md ml-1 shadow-sm border ${color.border} whitespace-nowrap">${mgr}</span>` : '';
                 return `
                 <div onclick="openAssignManagerModal('${s}')" title="Click to assign manager" class="cursor-pointer inline-flex items-center gap-1.5 bg-white text-slate-700 px-3 py-1.5 rounded-full text-sm font-semibold border border-slate-200 shadow-sm hover:shadow hover:border-blue-300 hover:bg-slate-50 transition-all group whitespace-nowrap">
-                    <span>${s}</span> ${mgrHtml}
+                    <span>${s}</span>${mgrHtml}
                     <button onclick="event.stopPropagation(); confirmStaffDelete('${s}')" class="text-slate-400 hover:text-red-500 transition-colors focus:outline-none p-0.5 rounded-full hover:bg-red-50 ml-1">
                         <i data-lucide="x" class="w-4 h-4"></i>
                     </button>
@@ -1058,190 +1107,4 @@
             });
 
             if (groupedStaff.unassigned.length > 0) {
-                staffHtml += `<div class="w-full text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-2 mb-1 ml-1 border-b border-slate-100 pb-1">Unassigned</div>`;
-                groupedStaff.unassigned.forEach(s => {
-                    staffHtml += renderStaffTag(s, null);
-                });
-            }
-            staffContainer.innerHTML = staffHtml;
-
-            // Render SMART Goals Table
-            const goalTableBody = document.getElementById('goalTableBody');
-            let goalHtml = '';
-            
-            const renderGoalRowGroup = (mgr, staffList) => {
-                if (staffList.length === 0) return '';
-                let html = '';
-                if (mgr) {
-                    const c = getManagerColor(mgr);
-                    html += `<tr class="${c.bg}/30"><td colspan="3" class="px-6 py-2 text-[10px] font-bold uppercase tracking-wider ${c.text} border-y ${c.border}">${mgr}'s Team</td></tr>`;
-                } else {
-                    html += `<tr class="bg-slate-50/80"><td colspan="3" class="px-6 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-y border-slate-200">Unassigned</td></tr>`;
-                }
-                
-                staffList.forEach(staffName => {
-                    const goalData = state.smartGoals[staffName];
-                    const color = getManagerColor(mgr);
-                    const managerBadge = mgr ? `<span class="ml-2 text-[10px] ${color.bg} ${color.text} px-2 py-0.5 rounded-md font-bold border ${color.border} shadow-sm whitespace-nowrap">${mgr}</span>` : '';
-                    
-                    let currentGoalHtml = '<span class="text-slate-400/80 italic font-medium">No active goal set.</span>';
-                    
-                    if (goalData) {
-                        const text = typeof goalData === 'string' ? goalData : goalData.text;
-                        const timestampHtml = goalData.timestamp ? `<div class="text-[11px] font-bold text-rose-500/90 mt-1.5 uppercase tracking-wider flex items-center gap-1"><i data-lucide="clock" class="w-3.5 h-3.5"></i>Set on ${goalData.timestamp}</div>` : '';
-                        currentGoalHtml = `<div class="font-medium text-slate-800">${text}</div>${timestampHtml}`;
-                    }
-
-                    html += `
-                        <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
-                            <td class="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <span>${staffName}</span>
-                                    ${managerBadge}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-slate-700 max-w-md whitespace-pre-wrap">${currentGoalHtml}</td>
-                            <td class="px-6 py-4 text-right">
-                                <button onclick="openGoalModal('${staffName}')" class="text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Update Goal">
-                                    <i data-lucide="pencil" class="w-4.5 h-4.5"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                return html;
-            };
-
-            state.managers.forEach(mgr => goalHtml += renderGoalRowGroup(mgr, groupedStaff[mgr]));
-            if (groupedStaff.unassigned.length > 0) goalHtml += renderGoalRowGroup(null, groupedStaff.unassigned);
-            goalTableBody.innerHTML = goalHtml;
-
-            // Render Obs/Coach Tables with grouped staff
-            renderTable('obs', 'obsTableBody', GOALS.obs, groupedStaff);
-            renderTable('coach', 'coachTableBody', GOALS.coach, groupedStaff);
-
-            lucide.createIcons();
-        }
-
-        function renderTable(type, tbodyId, goal, groupedStaff) {
-            const tbody = document.getElementById(tbodyId);
-            const monthData = state.records[state.viewMonth][type];
-            const isCurrentMonth = state.viewMonth === state.currentFiscalMonth;
-            const timePct = calculateMonthProgress(state.viewMonth);
-            let tableHtml = '';
-
-            const renderRowGroup = (mgr, staffList) => {
-                if (staffList.length === 0) return '';
-                
-                // Calculate Manager Team Progress
-                let teamGoal = staffList.length * goal;
-                let teamCurrent = 0;
-                staffList.forEach(staffName => {
-                    const entries = monthData[staffName] || [];
-                    teamCurrent += Math.min(entries.length, goal);
-                });
-                let teamPct = teamGoal === 0 ? 0 : (teamCurrent / teamGoal) * 100;
-                let barColor = getProgressColorClass(teamPct, timePct);
-
-                let html = '';
-                if (mgr) {
-                    const c = getManagerColor(mgr);
-                    html += `
-                    <tr class="${c.bg}/30">
-                        <td colspan="4" class="px-6 py-2 border-y ${c.border}">
-                            <div class="flex justify-between items-center w-full">
-                                <span class="text-[10px] font-bold uppercase tracking-wider ${c.text}">${mgr}'s Team</span>
-                                <div class="flex items-center gap-3">
-                                    <div class="hidden sm:flex flex-col items-end">
-                                        <div class="w-24 h-1.5 bg-white/60 rounded-full overflow-hidden shadow-inner">
-                                            <div class="h-full ${barColor} transition-all duration-700 ease-out" style="width: ${teamPct}%"></div>
-                                        </div>
-                                    </div>
-                                    <span class="text-[10px] font-bold ${c.text} bg-white/60 px-2 py-0.5 rounded-full shadow-sm border border-white/40">${teamCurrent} / ${teamGoal}</span>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>`;
-                } else {
-                    html += `
-                    <tr class="bg-slate-50/80">
-                        <td colspan="4" class="px-6 py-2 border-y border-slate-200">
-                            <div class="flex justify-between items-center w-full">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Unassigned</span>
-                                <div class="flex items-center gap-3">
-                                    <div class="hidden sm:flex flex-col items-end">
-                                        <div class="w-24 h-1.5 bg-slate-200/60 rounded-full overflow-hidden shadow-inner">
-                                            <div class="h-full ${barColor} transition-all duration-700 ease-out" style="width: ${teamPct}%"></div>
-                                        </div>
-                                    </div>
-                                    <span class="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded-full shadow-sm border border-slate-200/60">${teamCurrent} / ${teamGoal}</span>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>`;
-                }
-
-                staffList.forEach(staffName => {
-                    const entries = monthData[staffName] || [];
-                    const count = entries.length;
-                    const progressPct = Math.min((count / goal) * 100, 100);
-                    const progressColor = count >= goal ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 shadow-emerald-200 shadow-sm' : (count > 0 ? 'bg-gradient-to-r from-amber-400 to-amber-500 shadow-amber-200 shadow-sm' : 'bg-slate-200');
-                    
-                    const color = getManagerColor(mgr);
-                    const managerBadge = mgr ? `<span class="ml-2 text-[10px] ${color.bg} ${color.text} px-2 py-0.5 rounded-md font-bold border ${color.border} shadow-sm whitespace-nowrap">${mgr}</span>` : '';
-
-                    let slotsHtml = entries.map(entry => `
-                        <button onclick="openDeleteModal('${type}', '${staffName}', '${entry.id}')" class="slot-pill group inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200/60 text-indigo-700 px-3 py-1.5 rounded-xl text-xs font-bold mr-2 mb-2 hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-all">
-                            ${entry.initials} <span class="text-indigo-400/80 font-semibold text-[10px] group-hover:text-red-400">${entry.timestamp}</span>
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity absolute -right-1 -top-1 bg-red-100 text-red-600 rounded-full p-0.5 shadow-sm hidden group-hover:block"></i>
-                        </button>
-                    `).join('');
-
-                    for (let i = count; i < goal; i++) {
-                        slotsHtml += `<span class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-slate-400 mr-2 mb-2 text-xs font-bold shadow-sm">${i+1}</span>`;
-                    }
-
-                    html += `
-                        <tr class="group hover:bg-blue-50/40 transition-all duration-200 border-b border-transparent hover:border-blue-100">
-                            <td class="px-6 py-4 font-bold text-slate-900 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <span>${staffName}</span>
-                                    ${managerBadge}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-20 h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                                        <div class="h-full ${progressColor} transition-all duration-700 ease-out rounded-full" style="width: ${progressPct}%"></div>
-                                    </div>
-                                    <span class="text-xs font-extrabold tracking-wide ${count >= goal ? 'text-emerald-600' : 'text-slate-500'}">${count}/${goal}</span>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex flex-wrap items-center relative">
-                                    ${slotsHtml}
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                ${isCurrentMonth ? `
-                                <button onclick="openAddModal('${type}', '${staffName}')" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 hover:shadow-sm p-2 rounded-xl transition-all focus:outline-none transform hover:scale-105 active:scale-95" title="Add Entry">
-                                    <i data-lucide="plus" class="w-5 h-5"></i>
-                                </button>
-                                ` : '<span class="text-xs font-bold text-slate-400/80 italic bg-slate-100 px-2.5 py-1 rounded-lg">Archived</span>'}
-                            </td>
-                        </tr>
-                    `;
-                });
-                return html;
-            };
-
-            state.managers.forEach(mgr => tableHtml += renderRowGroup(mgr, groupedStaff[mgr]));
-            if (groupedStaff.unassigned.length > 0) tableHtml += renderRowGroup(null, groupedStaff.unassigned);
-            
-            tbody.innerHTML = tableHtml;
-        }
-
-        window.onload = init;
-    </script>
-</body>
-</html>
+                staffHtml += `<div class="w-full text-[10px] font-bold text-slate-400 uppercaseI can definitely add the toast notifications and build them directly into your project. Please share the code you are working on so I can integrate them.
